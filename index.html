@@ -1,0 +1,335 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Estoque Mercado Livre</title>
+<style>
+  :root { --bg:#f4f5f7; --card:#fff; --txt:#1f2937; --mut:#6b7280; --bor:#e5e7eb; --pri:#2563eb; --ok:#15803d; --bad:#b91c1c; --warn:#fee2e2; }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg:#111827; --card:#1f2937; --txt:#f3f4f6; --mut:#9ca3af; --bor:#374151; --pri:#3b82f6; --ok:#4ade80; --bad:#f87171; --warn:#4c1d1d; }
+  }
+  * { box-sizing: border-box; }
+  body { margin:0; font-family: system-ui, "Segoe UI", sans-serif; background:var(--bg); color:var(--txt); }
+  header { background:var(--card); border-bottom:1px solid var(--bor); padding:10px 16px; position:sticky; top:0; z-index:5; }
+  h1 { font-size:18px; margin:0 0 8px; }
+  nav { display:flex; gap:6px; }
+  nav button { flex:1; padding:8px; border:1px solid var(--bor); background:transparent; color:var(--txt); border-radius:8px; font-size:15px; cursor:pointer; }
+  nav button.ativo { background:var(--pri); border-color:var(--pri); color:#fff; }
+  main { padding:12px; max-width:1100px; margin:0 auto; }
+  .barra { display:flex; flex-wrap:wrap; gap:8px; margin-bottom:10px; align-items:center; }
+  .barra input[type=search] { flex:1; min-width:140px; }
+  button, input, select { font:inherit; }
+  input, select { padding:8px; border:1px solid var(--bor); border-radius:8px; background:var(--card); color:var(--txt); width:100%; }
+  .barra input { width:auto; }
+  .btn { padding:8px 12px; border:1px solid var(--bor); border-radius:8px; background:var(--card); color:var(--txt); cursor:pointer; }
+  .btn.pri { background:var(--pri); border-color:var(--pri); color:#fff; }
+  .btn.perigo { color:var(--bad); }
+  .btn.peq { padding:4px 8px; font-size:13px; }
+  .resumo { display:flex; flex-wrap:wrap; gap:8px; margin-bottom:10px; }
+  .resumo div { background:var(--card); border:1px solid var(--bor); border-radius:8px; padding:8px 12px; }
+  .resumo small { display:block; color:var(--mut); font-size:12px; }
+  .resumo b { font-size:16px; }
+  .tabela { overflow-x:auto; background:var(--card); border:1px solid var(--bor); border-radius:8px; }
+  table { border-collapse:collapse; width:100%; font-size:14px; }
+  th, td { padding:8px 10px; border-bottom:1px solid var(--bor); text-align:left; white-space:nowrap; }
+  th { color:var(--mut); font-weight:600; font-size:12px; text-transform:uppercase; }
+  .n { text-align:right; }
+  tr.baixo td { background:var(--warn); }
+  .neg { color:var(--bad); } .pos { color:var(--ok); }
+  .vazio { text-align:center; color:var(--mut); padding:24px; }
+  .acoes { display:flex; gap:4px; }
+  dialog { border:1px solid var(--bor); border-radius:12px; background:var(--card); color:var(--txt); width:min(440px, 94vw); padding:16px; }
+  dialog::backdrop { background:rgba(0,0,0,.5); }
+  dialog h2 { margin:0 0 12px; font-size:17px; }
+  dialog label { display:block; margin-bottom:10px; font-size:13px; color:var(--mut); }
+  dialog label input, dialog label select { margin-top:4px; color:var(--txt); }
+  .rodape { display:flex; justify-content:flex-end; gap:8px; margin-top:14px; }
+  .lucro { font-size:18px; font-weight:700; margin:4px 0 0; }
+  .dica { font-size:12px; color:var(--mut); margin:-4px 0 10px; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>📦 Estoque Mercado Livre</h1>
+  <nav>
+    <button data-aba="estoque" class="ativo">Estoque</button>
+    <button data-aba="vendas">Vendas</button>
+    <button data-aba="relatorio">Relatório</button>
+  </nav>
+</header>
+
+<main>
+  <section id="aba-estoque">
+    <div class="barra">
+      <input type="search" id="busca" placeholder="Buscar por nome ou SKU">
+      <button class="btn pri" id="btnNovo">+ Novo produto</button>
+      <button class="btn" id="btnVender">Registrar venda</button>
+    </div>
+    <div class="resumo" id="resEstoque"></div>
+    <div class="tabela"><table>
+      <thead><tr><th>SKU</th><th>Produto</th><th class="n">Qtd.</th><th class="n">Mín.</th><th class="n">Custo</th><th class="n">Preço</th><th class="n">Lucro bruto/un.</th><th></th></tr></thead>
+      <tbody id="tbEstoque"></tbody>
+    </table></div>
+  </section>
+
+  <section id="aba-vendas" hidden>
+    <div class="barra"><button class="btn pri" id="btnVender2">+ Registrar venda</button></div>
+    <div class="resumo" id="resVendas"></div>
+    <div class="tabela"><table>
+      <thead><tr><th>Data</th><th>Produto</th><th class="n">Qtd.</th><th class="n">Preço un.</th><th class="n">Receita</th><th class="n">Custo</th><th class="n">Despesas ML</th><th class="n">Lucro</th><th></th></tr></thead>
+      <tbody id="tbVendas"></tbody>
+    </table></div>
+  </section>
+
+  <section id="aba-relatorio" hidden>
+    <div class="barra">
+      De <input type="date" id="de"> até <input type="date" id="ate">
+      <button class="btn" id="btnCsv">Exportar CSV</button>
+    </div>
+    <div class="resumo" id="resRel"></div>
+    <div class="tabela"><table>
+      <thead><tr><th>Produto</th><th class="n">Unid. vendidas</th><th class="n">Receita</th><th class="n">Custo</th><th class="n">Despesas ML</th><th class="n">Lucro</th></tr></thead>
+      <tbody id="tbRel"></tbody>
+    </table></div>
+  </section>
+</main>
+
+<!-- Produto -->
+<dialog id="dlgProduto"><form id="fProduto">
+  <h2 id="tProduto">Novo produto</h2>
+  <label>SKU / código <input id="pSku" required></label>
+  <label>Nome <input id="pNome" required></label>
+  <label>Custo unitário (R$) <input id="pCusto" type="number" step="0.01" min="0" required></label>
+  <label>Preço de venda (R$) <input id="pPreco" type="number" step="0.01" min="0" required></label>
+  <label id="linhaQtd">Quantidade em estoque <input id="pQtd" type="number" step="1" min="0" value="0"></label>
+  <label>Estoque mínimo (alerta) <input id="pMin" type="number" step="1" min="0" value="2" required></label>
+  <div class="rodape"><button type="button" class="btn" data-fechar>Cancelar</button><button class="btn pri">Salvar</button></div>
+</form></dialog>
+
+<!-- Ajuste -->
+<dialog id="dlgAjuste"><form id="fAjuste">
+  <h2 id="tAjuste">Entrada de estoque</h2>
+  <label>Quantidade <input id="aQtd" type="number" step="1" value="1" required></label>
+  <p class="dica">Use número negativo para dar baixa (perda, correção de contagem).</p>
+  <label>Novo custo unitário (R$) <input id="aCusto" type="number" step="0.01" min="0" value="0"></label>
+  <p class="dica">Deixe 0 para manter o custo atual.</p>
+  <div class="rodape"><button type="button" class="btn" data-fechar>Cancelar</button><button class="btn pri">Confirmar</button></div>
+</form></dialog>
+
+<!-- Venda -->
+<dialog id="dlgVenda"><form id="fVenda">
+  <h2>Registrar venda</h2>
+  <label>Produto <select id="vProduto"></select></label>
+  <label>Quantidade <input id="vQtd" type="number" step="1" min="1" value="1" required></label>
+  <label>Preço unitário (R$) <input id="vPreco" type="number" step="0.01" min="0.01" required></label>
+  <label>Comissão do ML (%) <input id="vTaxa" type="number" step="0.01" min="0" max="100" value="14"></label>
+  <label>Taxa fixa por unidade (R$) <input id="vFixa" type="number" step="0.01" min="0" value="0"></label>
+  <label>Frete pago por você (R$) <input id="vFrete" type="number" step="0.01" min="0" value="0"></label>
+  <div>Lucro estimado<div class="lucro" id="vLucro"></div></div>
+  <div class="rodape"><button type="button" class="btn" data-fechar>Cancelar</button><button class="btn pri">Registrar</button></div>
+</form></dialog>
+
+<script>
+const $ = s => document.querySelector(s);
+const brl = v => Number(v).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c]));
+const soma = (a, f) => a.reduce((s, x) => s + f(x), 0);
+const cls = v => v < 0 ? 'neg' : 'pos';
+const card = (t, v) => `<div><small>${t}</small><b>${v}</b></div>`;
+const iso = d => d.toLocaleDateString('sv-SE');
+
+let produtos = [], vendas = [], editandoId = null, ajusteId = null;
+
+async function api(metodo, url, corpo, silencioso) {
+  const r = await fetch(url, { method: metodo, headers: { 'Content-Type': 'application/json' }, body: corpo ? JSON.stringify(corpo) : undefined });
+  if (!r.ok) {
+    let msg = 'Erro inesperado.';
+    try { msg = (await r.json()).erro || msg; } catch {}
+    if (!silencioso) alert(msg);
+    throw new Error(msg);
+  }
+  return r.status === 204 ? null : r.json();
+}
+
+async function carregar(silencioso) {
+  try {
+    [produtos, vendas] = await Promise.all([api('GET', '/api/produtos', null, silencioso), api('GET', '/api/vendas', null, silencioso)]);
+    renderEstoque(); renderVendas(); renderRel();
+  } catch {}
+}
+
+// ---------- Abas ----------
+function abrirAba(nome) {
+  document.querySelectorAll('main > section').forEach(s => s.hidden = s.id !== 'aba-' + nome);
+  document.querySelectorAll('nav button').forEach(b => b.classList.toggle('ativo', b.dataset.aba === nome));
+}
+document.querySelectorAll('nav button').forEach(b => b.onclick = () => abrirAba(b.dataset.aba));
+document.querySelectorAll('[data-fechar]').forEach(b => b.onclick = () => b.closest('dialog').close());
+
+// ---------- Estoque ----------
+function renderEstoque() {
+  const q = $('#busca').value.toLowerCase();
+  const lista = produtos.filter(p => (p.sku + ' ' + p.nome).toLowerCase().includes(q));
+  $('#tbEstoque').innerHTML = lista.map(p => `
+    <tr class="${p.estoqueBaixo ? 'baixo' : ''}">
+      <td>${esc(p.sku)}</td><td>${esc(p.nome)}</td>
+      <td class="n">${p.quantidade}</td><td class="n">${p.estoqueMinimo}</td>
+      <td class="n">${brl(p.custo)}</td><td class="n">${brl(p.preco)}</td><td class="n">${brl(p.preco - p.custo)}</td>
+      <td class="acoes">
+        <button class="btn peq" onclick="vender(${p.id})">Vender</button>
+        <button class="btn peq" onclick="ajustar(${p.id})">Entrada</button>
+        <button class="btn peq" onclick="editar(${p.id})">Editar</button>
+        <button class="btn peq perigo" onclick="excluir(${p.id})">Excluir</button>
+      </td></tr>`).join('') || '<tr><td colspan="8" class="vazio">Nenhum produto.</td></tr>';
+  $('#resEstoque').innerHTML =
+    card('Produtos', produtos.length) + card('Unidades', soma(produtos, p => p.quantidade)) +
+    card('Investido (custo)', brl(soma(produtos, p => p.custo * p.quantidade))) +
+    card('Valor de venda', brl(soma(produtos, p => p.preco * p.quantidade))) +
+    card('Estoque baixo (rosa)', produtos.filter(p => p.estoqueBaixo).length);
+}
+$('#busca').oninput = renderEstoque;
+
+$('#btnNovo').onclick = () => {
+  editandoId = null;
+  $('#tProduto').textContent = 'Novo produto';
+  $('#fProduto').reset();
+  $('#pSku').disabled = false; $('#linhaQtd').hidden = false;
+  $('#dlgProduto').showModal();
+};
+function editar(id) {
+  const p = produtos.find(x => x.id === id);
+  editandoId = id;
+  $('#tProduto').textContent = 'Editar produto';
+  $('#pSku').value = p.sku; $('#pSku').disabled = true;
+  $('#pNome').value = p.nome; $('#pCusto').value = p.custo; $('#pPreco').value = p.preco; $('#pMin').value = p.estoqueMinimo;
+  $('#linhaQtd').hidden = true;
+  $('#dlgProduto').showModal();
+}
+$('#fProduto').onsubmit = async e => {
+  e.preventDefault();
+  const corpo = { sku: $('#pSku').value, nome: $('#pNome').value, custo: +$('#pCusto').value, preco: +$('#pPreco').value,
+                  quantidade: +$('#pQtd').value, estoqueMinimo: +$('#pMin').value };
+  try {
+    await (editandoId ? api('PUT', '/api/produtos/' + editandoId, corpo) : api('POST', '/api/produtos', corpo));
+    $('#dlgProduto').close(); carregar();
+  } catch {}
+};
+async function excluir(id) {
+  const p = produtos.find(x => x.id === id);
+  if (!confirm(`Excluir "${p.nome}"? O histórico de vendas será mantido.`)) return;
+  await api('DELETE', '/api/produtos/' + id); carregar();
+}
+
+// ---------- Entrada / ajuste ----------
+function ajustar(id) {
+  ajusteId = id;
+  $('#tAjuste').textContent = 'Entrada de estoque – ' + produtos.find(x => x.id === id).nome;
+  $('#fAjuste').reset();
+  $('#dlgAjuste').showModal();
+}
+$('#fAjuste').onsubmit = async e => {
+  e.preventDefault();
+  try {
+    await api('POST', `/api/produtos/${ajusteId}/ajuste`, { quantidade: +$('#aQtd').value, novoCusto: +$('#aCusto').value });
+    $('#dlgAjuste').close(); carregar();
+  } catch {}
+};
+
+// ---------- Vendas ----------
+function renderVendas() {
+  $('#tbVendas').innerHTML = vendas.map(v => `
+    <tr><td>${new Date(v.data).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' })}</td><td>${esc(v.nome)}</td>
+      <td class="n">${v.quantidade}</td><td class="n">${brl(v.precoUnit)}</td><td class="n">${brl(v.receita)}</td>
+      <td class="n">${brl(v.custoTotal)}</td><td class="n">${brl(v.despesas)}</td>
+      <td class="n ${cls(v.lucro)}">${brl(v.lucro)}</td>
+      <td><button class="btn peq perigo" onclick="cancelarVenda(${v.id})">Cancelar</button></td></tr>`).join('')
+    || '<tr><td colspan="9" class="vazio">Nenhuma venda.</td></tr>';
+  $('#resVendas').innerHTML = card('Vendas', vendas.length) + card('Lucro acumulado', brl(soma(vendas, v => v.lucro)));
+}
+async function cancelarVenda(id) {
+  if (!confirm('Cancelar esta venda e devolver os itens ao estoque?')) return;
+  await api('DELETE', '/api/vendas/' + id); carregar();
+}
+
+function vender(id) {
+  const disp = produtos.filter(p => p.quantidade > 0);
+  if (!disp.length) return alert('Nenhum produto com estoque disponível.');
+  $('#vProduto').innerHTML = disp.map(p => `<option value="${p.id}">${esc(p.sku)} – ${esc(p.nome)} (${p.quantidade} un.)</option>`).join('');
+  if (id && disp.some(p => p.id === id)) $('#vProduto').value = id;
+  $('#vFixa').value = 0; $('#vFrete').value = 0;
+  trocaProduto();
+  $('#dlgVenda').showModal();
+}
+function trocaProduto() {
+  const p = produtos.find(x => x.id == $('#vProduto').value);
+  $('#vQtd').max = p.quantidade; $('#vQtd').value = 1; $('#vPreco').value = p.preco;
+  simular();
+}
+function simular() {
+  const p = produtos.find(x => x.id == $('#vProduto').value);
+  if (!p) return;
+  const q = +$('#vQtd').value, receita = q * +$('#vPreco').value;
+  const lucro = receita - p.custo * q - receita * +$('#vTaxa').value / 100 - +$('#vFixa').value * q - +$('#vFrete').value;
+  $('#vLucro').textContent = brl(lucro);
+  $('#vLucro').className = 'lucro ' + cls(lucro);
+}
+$('#vProduto').onchange = trocaProduto;
+['#vQtd', '#vPreco', '#vTaxa', '#vFixa', '#vFrete'].forEach(s => $(s).oninput = simular);
+$('#btnVender').onclick = $('#btnVender2').onclick = () => vender(null);
+$('#fVenda').onsubmit = async e => {
+  e.preventDefault();
+  try {
+    const r = await api('POST', '/api/vendas', {
+      produtoId: +$('#vProduto').value, quantidade: +$('#vQtd').value, precoUnit: +$('#vPreco').value,
+      taxaPercent: +$('#vTaxa').value, taxaFixa: +$('#vFixa').value, frete: +$('#vFrete').value
+    });
+    $('#dlgVenda').close();
+    await carregar();
+    if (r.estoqueBaixo) alert(`Atenção: estoque de "${r.venda.nome}" está baixo (${r.restante} un.).`);
+  } catch { carregar(); }
+};
+
+// ---------- Relatório ----------
+const hoje = new Date();
+$('#de').value = iso(new Date(hoje.getFullYear(), hoje.getMonth(), 1));
+$('#ate').value = iso(hoje);
+$('#de').onchange = $('#ate').onchange = renderRel;
+
+function vendasPeriodo() {
+  const de = $('#de').value, ate = $('#ate').value;
+  return vendas.filter(v => { const d = v.data.slice(0, 10); return (!de || d >= de) && (!ate || d <= ate); });
+}
+function renderRel() {
+  const vs = vendasPeriodo();
+  const receita = soma(vs, v => v.receita), lucro = soma(vs, v => v.lucro);
+  $('#resRel').innerHTML = card('Vendas', vs.length) + card('Unidades', soma(vs, v => v.quantidade)) +
+    card('Receita', brl(receita)) + card('Lucro', brl(lucro)) +
+    card('Margem', (receita > 0 ? (lucro / receita * 100).toFixed(1).replace('.', ',') : '0,0') + '%');
+  const grupos = {};
+  vs.forEach(v => (grupos[v.sku] ||= []).push(v));
+  const linhas = Object.values(grupos).sort((a, b) => soma(b, v => v.lucro) - soma(a, v => v.lucro));
+  $('#tbRel').innerHTML = linhas.map(g => `
+    <tr><td>${esc(g[0].nome)}</td><td class="n">${soma(g, v => v.quantidade)}</td><td class="n">${brl(soma(g, v => v.receita))}</td>
+      <td class="n">${brl(soma(g, v => v.custoTotal))}</td><td class="n">${brl(soma(g, v => v.despesas))}</td>
+      <td class="n ${cls(soma(g, v => v.lucro))}">${brl(soma(g, v => v.lucro))}</td></tr>`).join('')
+    || '<tr><td colspan="6" class="vazio">Sem vendas no período.</td></tr>';
+}
+$('#btnCsv').onclick = () => {
+  const n = x => Number(x).toFixed(2).replace('.', ',');
+  const linhas = ['Data;SKU;Produto;Qtd;Preço un.;Receita;Custo;Despesas ML;Lucro'];
+  vendasPeriodo().forEach(v => linhas.push([new Date(v.data).toLocaleString('pt-BR'), v.sku, v.nome.replace(/;/g, ','),
+    v.quantidade, n(v.precoUnit), n(v.receita), n(v.custoTotal), n(v.despesas), n(v.lucro)].join(';')));
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob(['\uFEFF' + linhas.join('\n')], { type: 'text/csv;charset=utf-8' }));
+  a.download = `vendas_${iso(new Date())}.csv`;
+  a.click();
+};
+
+// ---------- Início e atualização automática (vê o que outras pessoas fizeram) ----------
+carregar();
+setInterval(() => { if (!document.querySelector('dialog[open]')) carregar(true); }, 15000);
+</script>
+</body>
+</html>
